@@ -395,7 +395,7 @@
     <div>
       <div class="badge">
         <span class="icon" id="icon-trending"></span>
-        BESTEA 行銷經營 KPI ・ v3.5 ・ 已扣除取消訂單
+        BESTEA 行銷經營 KPI ・ v3.6 ・ 同期動態對照
       </div>
       <h1>拖拉式報表匯入 ・ Firebase 雲端同步</h1>
       <p class="meta">
@@ -421,7 +421,7 @@
       <div>
         <div class="lbl">對比基期 (TWD)</div>
         <input type="number" id="cfg-last-revenue" />
-        <div style="font-size:9px;color:#94a3b8;margin-top:2px;">上一年度官網 GMV</div>
+        <div style="font-size:9px;color:#94a3b8;margin-top:2px;">手動基期（沒匯入同期資料時使用）</div>
       </div>
       <div class="vsep"></div>
       <div>
@@ -498,6 +498,9 @@
         </div>
       </div>
 
+      <!-- 2025 同期累計對照（年中即時進度用）-->
+      <div id="lastyear-info-card"></div>
+
       <!-- KPI 評分 -->
       <div class="card">
         <div class="card-header gray">
@@ -543,14 +546,6 @@
         <div class="dist-foot">
           <span>0%</span><span>100%</span><span>120%</span>
         </div>
-      </div>
-
-      <div class="info-box warn">
-        <div class="head">⚠️ 安全提醒</div>
-        <div>此版本採免登入公開模式，建議：</div>
-        <div>① 不公開分享部署網址或檔案</div>
-        <div>② 每月按「下載 JSON 備份」存到 Google Drive</div>
-        <div>③ 月度資料即時同步雲端，跨裝置可用</div>
       </div>
 
       <div class="info-box gray">
@@ -627,9 +622,10 @@ const EMPTY_MONTH = {
 // ─── State ───
 const state = {
   year: "2026",
-  lastYearRevenue: 15038941,
+  lastYearRevenue: 13400878,    // 2025 全年 TotalSales（年底結算用）
   bonusRate: 0.004,
   monthly: buildEmptyMonthly(),
+  monthlyLastYear: buildEmptyMonthly(),  // 2025 各月對照（用於年中即時進度）
   importLogs: [],
   syncStatus: "connecting",
   lastSyncedAt: null
@@ -661,7 +657,8 @@ function saveLocalCache() {
       year: state.year,
       lastYearRevenue: state.lastYearRevenue,
       bonusRate: state.bonusRate,
-      monthly: state.monthly
+      monthly: state.monthly,
+      monthlyLastYear: state.monthlyLastYear
     }));
   } catch {}
 }
@@ -683,12 +680,15 @@ function computeSummary() {
   let totalRevenue = 0, totalBroadcasts = 0, totalBroadcastRevenue = 0;
   let totalMembers = 0, totalReturning = 0, totalCustomers = 0;
   let monthsWithData = 0, memberMonthsCount = 0;
+  let lastMonthWithRevenue = 0; // 最後一個有營收資料的月份（1-12）
 
-  MONTHS.forEach(m => {
+  MONTHS.forEach((m, idx) => {
     const d = state.monthly[m] || EMPTY_MONTH;
-    const has = d.revenue > 0 || d.broadcastCount > 0 || d.members > 0 || d.totalCustomers > 0;
+    const has = (+d.revenue || 0) > 0 || (+d.broadcastCount || 0) > 0 ||
+                (+d.members || 0) > 0 || (+d.totalCustomers || 0) > 0;
     if (has) monthsWithData++;
-    if (d.members > 0) memberMonthsCount++;
+    if ((+d.members || 0) > 0) memberMonthsCount++;
+    if ((+d.revenue || 0) > 0) lastMonthWithRevenue = idx + 1; // 1-12
     totalRevenue += +d.revenue || 0;
     totalBroadcasts += +d.broadcastCount || 0;
     totalBroadcastRevenue += +d.broadcastRevenue || 0;
@@ -697,14 +697,59 @@ function computeSummary() {
     totalCustomers += +d.totalCustomers || 0;
   });
 
-  const growthRate = state.lastYearRevenue > 0
-    ? (totalRevenue - state.lastYearRevenue) / state.lastYearRevenue : 0;
+  // ── 計算 2025 同期累計 ──
+  let lastYearSamePeriodRevenue = 0;
+  let lyMatchedMonths = 0; // 對應月份中有 2025 資料的數量
+  for (let i = 0; i < lastMonthWithRevenue; i++) {
+    const m = MONTHS[i];
+    const ly = state.monthlyLastYear[m] || EMPTY_MONTH;
+    if ((+ly.revenue || 0) > 0) {
+      lyMatchedMonths++;
+      lastYearSamePeriodRevenue += +ly.revenue || 0;
+    }
+  }
+  // 只有當「2025 對應月份全部都有資料」才能用同期累計做比較
+  // 例如：當前年度填到 4 月 → 需要 2025 的 1, 2, 3, 4 月都有資料
+  const hasFullSamePeriod = lyMatchedMonths === lastMonthWithRevenue && lastMonthWithRevenue > 0;
+
+  // 也計算 2025 全年總額（年底結算用）
+  let lastYearFullTotal = 0;
+  let lyFullMonths = 0;
+  MONTHS.forEach(m => {
+    const v = +(state.monthlyLastYear[m]?.revenue) || 0;
+    if (v > 0) { lyFullMonths++; lastYearFullTotal += v; }
+  });
+
+  // ── 決定要用哪個基期計算成長率 ──
+  // 1. 12 月全填 + 2025 全年完整 → 用 2025 全年累計（年度結算）
+  // 2. 年中 + 2025 對應月份全部有資料 → 用同期累計
+  // 3. 否則 → 退回使用「對比基期」欄位（手動）
+  let baseForGrowth;
+  let baseSource; // "samePeriod" | "samePeriodFullYear" | "manual" | "none"
+  if (lastMonthWithRevenue === 12 && lyFullMonths === 12) {
+    baseForGrowth = lastYearFullTotal;
+    baseSource = "samePeriodFullYear";
+  } else if (hasFullSamePeriod && lastMonthWithRevenue < 12) {
+    baseForGrowth = lastYearSamePeriodRevenue;
+    baseSource = "samePeriod";
+  } else {
+    baseForGrowth = state.lastYearRevenue;
+    baseSource = "manual";
+  }
+
+  const growthRate = baseForGrowth > 0
+    ? (totalRevenue - baseForGrowth) / baseForGrowth : 0;
   const rpp = totalBroadcasts > 0 ? totalBroadcastRevenue / totalBroadcasts : 0;
   const returningRate = totalCustomers > 0 ? totalReturning / totalCustomers : 0;
   const monthlyMemberAvg = memberMonthsCount > 0 ? totalMembers / memberMonthsCount : 0;
 
   return {
-    monthsWithData, totalRevenue, growthRate,
+    monthsWithData, lastMonthWithRevenue,
+    totalRevenue, growthRate,
+    baseForGrowth, baseSource,
+    lastYearSamePeriodRevenue, lyMatchedMonths,
+    lastYearFullTotal, lyFullMonths,
+    hasFullSamePeriod,
     totalBroadcasts, totalBroadcastRevenue, rpp,
     totalMembers, memberMonthsCount, monthlyMemberAvg,
     totalReturning, totalCustomers, returningRate
@@ -993,12 +1038,24 @@ function render() {
   // KPI 評分
   const kpiRows = document.getElementById("kpi-rows");
   kpiRows.innerHTML = "";
+
+  // 動態 subtext 顯示成長率對比基期來源
+  let growthSubtext;
+  const lastYearForLabel = String(parseInt(state.year, 10) - 1);
+  if (summary.baseSource === "samePeriod") {
+    growthSubtext = `📊 ${state.year} 1-${summary.lastMonthWithRevenue}月累計 ${summary.totalRevenue.toLocaleString()} vs ${lastYearForLabel} 同期 ${summary.baseForGrowth.toLocaleString()}`;
+  } else if (summary.baseSource === "samePeriodFullYear") {
+    growthSubtext = `🎯 ${state.year} 全年 ${summary.totalRevenue.toLocaleString()} vs ${lastYearForLabel} 全年 ${summary.baseForGrowth.toLocaleString()}（年度結算）`;
+  } else {
+    growthSubtext = `${state.year} 累計 ${summary.totalRevenue.toLocaleString()} vs 手動基期 ${summary.baseForGrowth.toLocaleString()}（建議匯入 ${lastYearForLabel} 同期報表）`;
+  }
+
   const kpiMeta = [
     { key: "growthRate", title: "年成長率",
       target: `≥ ${(KPI_CONFIG.growthRate.target * 100).toFixed(0)}%`,
       actual: `${(summary.growthRate * 100).toFixed(2)}%`,
       score: scores.sGrowth, weight: KPI_CONFIG.growthRate.weight,
-      subtext: `官網 GMV ${summary.totalRevenue.toLocaleString()} vs 基期 ${state.lastYearRevenue.toLocaleString()}`,
+      subtext: growthSubtext,
       color: KPI_CONFIG.growthRate.color, icon: "trending"
     },
     { key: "rpp", title: "平均 RPP（每則推播營收）",
@@ -1108,8 +1165,88 @@ function render() {
   // Sync badge
   renderSyncBadge();
 
+  // 2025 同期對照卡
+  renderLastYearInfo(summary);
+
   // Import logs
   renderLogs();
+}
+
+function renderLastYearInfo(summary) {
+  const el = document.getElementById("lastyear-info-card");
+  if (!el) return;
+  const lastYear = String(parseInt(state.year, 10) - 1);
+  
+  // 計算 2025 各月狀態
+  let lyMonthsWithData = 0;
+  let lyTotal = 0;
+  MONTHS.forEach(m => {
+    const r = +(state.monthlyLastYear[m]?.revenue) || 0;
+    if (r > 0) { lyMonthsWithData++; lyTotal += r; }
+  });
+  
+  if (lyMonthsWithData === 0) {
+    // 完全沒 2025 資料 → 提示使用者匯入
+    el.innerHTML = `
+      <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:14px;padding:14px 18px;margin-bottom:20px;">
+        <div style="font-weight:700;color:#78350f;font-size:13px;margin-bottom:6px;">
+          💡 建議：匯入 ${lastYear} 全年報表以便年中即時對比
+        </div>
+        <div style="font-size:11px;color:#92400e;line-height:1.7;">
+          目前年成長率使用「對比基期」欄位的固定數字（${state.lastYearRevenue.toLocaleString()}），<br/>
+          這在年中會永遠看起來負成長（因為 ${state.year} 累計 vs ${lastYear} 全年比較）。<br/>
+          <strong>解法：把 ${lastYear} 全年的 OnlineTotalSales CSV 拖入工具</strong>，系統會自動：<br/>
+          • 年中：用「${state.year} 1-N月 vs ${lastYear} 1-N月」即時計算<br/>
+          • 年底：自動切換成「${state.year} 全年 vs ${lastYear} 全年」做最終結算
+        </div>
+      </div>`;
+  } else if (lyMonthsWithData < 12) {
+    // 部分 2025 資料
+    const matchInfo = summary.hasFullSamePeriod
+      ? `✓ ${state.year} 1-${summary.lastMonthWithRevenue} 月在 ${lastYear} 同期皆有資料，成長率正確計算中。`
+      : `⚠ ${state.year} 對應月份在 ${lastYear} 中部分缺資料，目前退回使用手動基期 ${state.lastYearRevenue.toLocaleString()}。建議補齊 ${lastYear} 全年資料。`;
+    el.innerHTML = `
+      <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:14px;padding:14px 18px;margin-bottom:20px;">
+        <div style="font-weight:700;color:#1e40af;font-size:13px;margin-bottom:6px;">
+          📊 已載入 ${lastYear} 同期對照資料（${lyMonthsWithData}/12 個月）
+        </div>
+        <div style="font-size:11px;color:#1d4ed8;line-height:1.7;">
+          ${lastYear} 累計營收：${lyTotal.toLocaleString()}。<br/>
+          ${matchInfo}
+        </div>
+      </div>`;
+  } else {
+    // 完整 2025 資料
+    const samePeriodLY = summary.lastYearSamePeriodRevenue;
+    if (summary.lastMonthWithRevenue > 0 && summary.lastMonthWithRevenue < 12) {
+      const periodLabel = `1-${summary.lastMonthWithRevenue}月`;
+      el.innerHTML = `
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:14px;padding:14px 18px;margin-bottom:20px;">
+          <div style="font-weight:700;color:#15803d;font-size:13px;margin-bottom:6px;">
+            ✓ 動態同期對照運作中
+          </div>
+          <div style="font-size:11px;color:#15803d;line-height:1.7;">
+            ${state.year} ${periodLabel}：${summary.totalRevenue.toLocaleString()}　|　
+            ${lastYear} ${periodLabel}：${samePeriodLY.toLocaleString()}　|　
+            <strong style="color:${summary.growthRate >= 0 ? '#15803d' : '#dc2626'};">
+              成長率 ${(summary.growthRate * 100).toFixed(2)}%
+            </strong><br/>
+            <span style="color:#16a34a;">${lastYear} 全年累計：${lyTotal.toLocaleString()}（年底自動切換）</span>
+          </div>
+        </div>`;
+    } else {
+      el.innerHTML = `
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:14px;padding:14px 18px;margin-bottom:20px;">
+          <div style="font-weight:700;color:#15803d;font-size:13px;margin-bottom:6px;">
+            🎯 年度結算模式
+          </div>
+          <div style="font-size:11px;color:#15803d;line-height:1.7;">
+            ${state.year} 全年：${summary.totalRevenue.toLocaleString()}　vs　${lastYear} 全年：${lyTotal.toLocaleString()}<br/>
+            年成長率：<strong>${(summary.growthRate * 100).toFixed(2)}%</strong>
+          </div>
+        </div>`;
+    }
+  }
 }
 
 function renderSyncBadge() {
@@ -1226,6 +1363,7 @@ function onStateChange() {
         lastYearRevenue: state.lastYearRevenue,
         bonusRate: state.bonusRate,
         monthlyData: state.monthly,
+        monthlyLastYearData: state.monthlyLastYear,
         updatedAt: now
       }, { merge: true });
       state.lastSyncedAt = now;
@@ -1250,7 +1388,12 @@ async function handleFiles(fileList) {
     return;
   }
   const newLogs = [];
-  const updates = {};
+  const updatesCurrent = {};   // 當前年（state.year）的更新
+  const updatesLastYear = {};  // 上一年（state.year - 1）的更新
+
+  const currentYear = String(state.year);
+  const lastYear = String(parseInt(currentYear, 10) - 1);
+
   for (const file of files) {
     try {
       const text = await file.text();
@@ -1266,24 +1409,67 @@ async function handleFiles(fileList) {
         newLogs.push({ status: "error", msg: `${file.name} 無法識別或無資料` });
         continue;
       }
+
+      // 依檔案中的年份分流
+      const fileYear = String(parsed.year || "");
+      let target;
+      let yearTag;
+      if (fileYear === currentYear) {
+        target = updatesCurrent;
+        yearTag = `${fileYear}年（本年）`;
+      } else if (fileYear === lastYear) {
+        target = updatesLastYear;
+        yearTag = `${fileYear}年（對比基期）`;
+      } else if (!fileYear) {
+        // 推播紀錄可能多年混合，預設分到當前年
+        target = updatesCurrent;
+        yearTag = "未指定年份（套用至本年）";
+      } else {
+        newLogs.push({
+          status: "error",
+          msg: `${file.name} 年份 ${fileYear} 不符（需 ${currentYear} 或 ${lastYear}）`
+        });
+        continue;
+      }
+
       Object.entries(parsed.monthly).forEach(([m, d]) => {
-        if (!updates[m]) updates[m] = {};
-        Object.assign(updates[m], d);
+        if (!target[m]) target[m] = {};
+        Object.assign(target[m], d);
       });
       newLogs.push({
         status: "success",
-        msg: `${file.name} → ${label}（${parsed.year || "?"}年，${Object.keys(parsed.monthly).length}個月）`
+        msg: `${file.name} → ${label}｜${yearTag}｜${Object.keys(parsed.monthly).length} 個月`
       });
     } catch (err) {
       newLogs.push({ status: "error", msg: `${file.name} 解析失敗：${err.message}` });
     }
   }
-  if (Object.keys(updates).length > 0) {
-    Object.entries(updates).forEach(([m, d]) => {
+
+  // 套用本年更新
+  if (Object.keys(updatesCurrent).length > 0) {
+    Object.entries(updatesCurrent).forEach(([m, d]) => {
       if (!state.monthly[m]) state.monthly[m] = { ...EMPTY_MONTH };
       state.monthly[m] = { ...state.monthly[m], ...d };
     });
   }
+  // 套用對比基期更新
+  if (Object.keys(updatesLastYear).length > 0) {
+    Object.entries(updatesLastYear).forEach(([m, d]) => {
+      if (!state.monthlyLastYear[m]) state.monthlyLastYear[m] = { ...EMPTY_MONTH };
+      state.monthlyLastYear[m] = { ...state.monthlyLastYear[m], ...d };
+    });
+    // 自動更新 lastYearRevenue 為 2025 全年合計（如果有完整資料）
+    let lyTotal = 0;
+    let lyMonthCount = 0;
+    MONTHS.forEach(m => {
+      const v = +(state.monthlyLastYear[m]?.revenue) || 0;
+      if (v > 0) { lyTotal += v; lyMonthCount++; }
+    });
+    if (lyMonthCount === 12) {
+      state.lastYearRevenue = lyTotal;
+    }
+  }
+
   state.importLogs = [...newLogs, ...state.importLogs].slice(0, 20);
   onStateChange();
 }
@@ -1294,9 +1480,10 @@ function init() {
   const cached = loadLocalCache();
   if (cached) {
     state.year = cached.year || "2026";
-    state.lastYearRevenue = cached.lastYearRevenue ?? 15038941;
+    state.lastYearRevenue = cached.lastYearRevenue ?? 13400878;
     state.bonusRate = cached.bonusRate ?? 0.004;
     state.monthly = cached.monthly || buildEmptyMonthly();
+    state.monthlyLastYear = cached.monthlyLastYear || buildEmptyMonthly();
   }
 
   // 設定 input 連結
@@ -1335,16 +1522,18 @@ function init() {
 
   // 按鈕
   document.getElementById("btn-clear-data").addEventListener("click", () => {
-    if (!confirm("確定要清空所有月份資料？（會同步雲端）")) return;
+    if (!confirm("確定要清空所有月份資料？（會同步雲端，含 2025 對比基期月度資料）")) return;
     state.monthly = buildEmptyMonthly();
+    state.monthlyLastYear = buildEmptyMonthly();
     onStateChange();
   });
   document.getElementById("btn-reset").addEventListener("click", () => {
     if (!confirm("確定要完全重置（含設定）？")) return;
     state.year = "2026";
-    state.lastYearRevenue = 15038941;
+    state.lastYearRevenue = 13400878;
     state.bonusRate = 0.004;
     state.monthly = buildEmptyMonthly();
+    state.monthlyLastYear = buildEmptyMonthly();
     state.importLogs = [];
     yearInput.value = state.year;
     lastRev.value = state.lastYearRevenue;
@@ -1396,6 +1585,7 @@ async function setupFirestoreSync() {
           document.getElementById("cfg-bonus-rate").value = state.bonusRate;
         }
         if (d.monthlyData) state.monthly = d.monthlyData;
+        if (d.monthlyLastYearData) state.monthlyLastYear = d.monthlyLastYearData;
         if (d.updatedAt) state.lastSyncedAt = d.updatedAt;
       }
       state.syncStatus = "synced";
@@ -1414,11 +1604,12 @@ async function setupFirestoreSync() {
 // ─── 匯出 ───
 function exportJSON() {
   const data = {
-    _meta: { exportedAt: new Date().toISOString(), version: "v3.3-html", source: "BESTEA Marketing KPI" },
+    _meta: { exportedAt: new Date().toISOString(), version: "v3.6-html", source: "BESTEA Marketing KPI" },
     year: state.year,
     lastYearRevenue: state.lastYearRevenue,
     bonusRate: state.bonusRate,
-    monthlyData: state.monthly
+    monthlyData: state.monthly,
+    monthlyLastYearData: state.monthlyLastYear
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -1441,6 +1632,7 @@ async function restoreJSON(e) {
     if (d.lastYearRevenue !== undefined) state.lastYearRevenue = d.lastYearRevenue;
     if (d.bonusRate !== undefined) state.bonusRate = d.bonusRate;
     if (d.monthlyData) state.monthly = d.monthlyData;
+    if (d.monthlyLastYearData) state.monthlyLastYear = d.monthlyLastYearData;
     document.getElementById("cfg-year").value = state.year;
     document.getElementById("cfg-last-revenue").value = state.lastYearRevenue;
     document.getElementById("cfg-bonus-rate").value = state.bonusRate;
