@@ -395,7 +395,7 @@
     <div>
       <div class="badge">
         <span class="icon" id="icon-trending"></span>
-        BESTEA 行銷經營 KPI ・ v3.3 ・ 單檔 HTML
+        BESTEA 行銷經營 KPI ・ v3.4 ・ 支援日報/月報自動辨識
       </div>
       <h1>拖拉式報表匯入 ・ Firebase 雲端同步</h1>
       <p class="meta">
@@ -769,15 +769,32 @@ function detectReportType(filename, rows) {
   return "unknown";
 }
 
+// 偵測格式：月報（"2025/01/01 - 2025/01/31"）vs 日報（"2026/02/01"）
+// 月報：第三欄含「-」（日期範圍） → 每行直接是該月資料
+// 日報：第三欄是單日 → 多行需依月加總
+function isDailyFormat(row2) {
+  return row2 && !row2.includes("-") && /^\d{4}\/\d{2}\/\d{2}$/.test(row2.trim());
+}
+
 function parseGMV(rows) {
   const monthly = {}; let year = null;
   for (const row of rows) {
     if (row.length < 4 || row[0] !== "分析區間") continue;
-    const m = (row[2] || "").match(/(\d{4})\/(\d{2})\/\d{2}/);
+    const dateCell = row[2] || "";
+    const m = dateCell.match(/(\d{4})\/(\d{2})\/\d{2}/);
     if (!m) continue;
     year = m[1];
+    const month = m[2];
     const rev = parseInt(row[3].replace(/,/g, ""), 10);
-    if (!isNaN(rev)) monthly[m[2]] = { revenue: rev };
+    if (isNaN(rev)) continue;
+    if (isDailyFormat(dateCell)) {
+      // 日報：累加
+      if (!monthly[month]) monthly[month] = { revenue: 0 };
+      monthly[month].revenue += rev;
+    } else {
+      // 月報：直接覆蓋
+      monthly[month] = { revenue: rev };
+    }
   }
   return { type: "gmv", year, monthly };
 }
@@ -786,11 +803,19 @@ function parseMembers(rows) {
   const monthly = {}; let year = null;
   for (const row of rows) {
     if (row.length < 4 || row[0] !== "分析區間") continue;
-    const m = (row[2] || "").match(/(\d{4})\/(\d{2})\/\d{2}/);
+    const dateCell = row[2] || "";
+    const m = dateCell.match(/(\d{4})\/(\d{2})\/\d{2}/);
     if (!m) continue;
     year = m[1];
+    const month = m[2];
     const v = parseInt(row[3].replace(/,/g, ""), 10);
-    if (!isNaN(v)) monthly[m[2]] = { members: v };
+    if (isNaN(v)) continue;
+    if (isDailyFormat(dateCell)) {
+      if (!monthly[month]) monthly[month] = { members: 0 };
+      monthly[month].members += v;
+    } else {
+      monthly[month] = { members: v };
+    }
   }
   return { type: "members", year, monthly };
 }
@@ -799,13 +824,23 @@ function parseShoppers(rows) {
   const monthly = {}; let year = null;
   for (const row of rows) {
     if (row.length < 6 || row[0] !== "分析區間") continue;
-    const m = (row[2] || "").match(/(\d{4})\/(\d{2})\/\d{2}/);
+    const dateCell = row[2] || "";
+    const m = dateCell.match(/(\d{4})\/(\d{2})\/\d{2}/);
     if (!m) continue;
     year = m[1];
+    const month = m[2];
     const tc = parseInt(row[3].replace(/,/g, ""), 10);
     const rc = parseInt(row[5].replace(/,/g, ""), 10);
-    if (!isNaN(tc) && !isNaN(rc)) {
-      monthly[m[2]] = { totalCustomers: tc, returningCustomers: rc };
+    if (isNaN(tc) || isNaN(rc)) continue;
+    if (isDailyFormat(dateCell)) {
+      // 日報：總顧客 + 舊客 都加總
+      // 注意：「總顧客」按日加總會略高於月實際值（因為跨日有重複客）
+      // 但在 KPI 計算中，舊客占比 = sum(舊客)/sum(總顧客) 仍是合理近似
+      if (!monthly[month]) monthly[month] = { totalCustomers: 0, returningCustomers: 0 };
+      monthly[month].totalCustomers += tc;
+      monthly[month].returningCustomers += rc;
+    } else {
+      monthly[month] = { totalCustomers: tc, returningCustomers: rc };
     }
   }
   return { type: "shoppers", year, monthly };
