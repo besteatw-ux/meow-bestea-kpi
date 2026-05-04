@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BESTEA 行銷經營 KPI 試算工具</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700;900&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    min-height: 100%;
+    background: linear-gradient(160deg, #f0f4f8 0%, #e8edf5 50%, #f5f0eb 100%);
+    font-family: 'Noto Sans TC', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: #1e293b;
+    line-height: 1.5;
+  }
+  body { padding: 24px 16px; }
+  .container { max-width: 1280px; margin: 0 auto; }
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes scoreIn { 0% { transform: scale(0.8); opacity: 0; } 60% { transform: scale(1.05); } 100% { transform: scale(1); opacity: 1; } }
+
+  /* HEADER */
+  .header {
+    display: flex; flex-wrap: wrap;
+    justify-content: space-between; align-items: flex-end;
+    gap: 20px; margin-bottom: 24px;
+    animation: slideUp 0.5s ease-out;
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: #1e293b; color: #f8fafc;
+    border-radius: 8px; padding: 6px 14px;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.1em; margin-bottom: 12px;
+  }
+  h1 {
+    font-size: 28px; font-weight: 900; line-height: 1.3;
+    background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .header .meta {
+    color: #94a3b8; font-size: 13px;
+    margin-top: 4px; font-weight: 500;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .sync-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 6px;
+    font-size: 10px; font-weight: 700;
+  }
+  .actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .btn {
+    font-size: 11px; font-weight: 600; color: #64748b;
+    background: #fff; border: 1px solid #e2e8f0;
+    border-radius: 8px; padding: 5px 12px; cursor: pointer;
+    font-family: inherit;
+  }
+  .btn:hover { background: #f8fafc; }
+  .btn.danger { color: #dc2626; border-color: #fecaca; }
+  .btn-dark {
+    font-size: 10px; font-weight: 600; color: #cbd5e1;
+    background: rgba(255,255,255,0.05); border: 1px solid #475569;
+    border-radius: 6px; padding: 3px 8px; cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-dark:hover { background: rgba(255,255,255,0.12); }
+
+  /* TOP CONFIG */
+  .config {
+    background: #fff; border-radius: 16px; padding: 16px 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);
+    border: 1px solid #e2e8f0;
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  }
+  .config .lbl {
+    font-size: 10px; font-weight: 700; color: #94a3b8;
+    letter-spacing: 0.08em; margin-bottom: 4px;
+  }
+  .config input {
+    font-size: 22px; font-weight: 800; color: #1e293b;
+    border: none; outline: none; width: 140px;
+    background: transparent; font-family: inherit;
+    font-variant-numeric: tabular-nums;
+  }
+  .config .vsep { width: 1px; height: 40px; background: #e2e8f0; }
+  .config .pool {
+    font-size: 22px; font-weight: 800; color: #2563eb;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* DROPZONE */
+  .dropzone {
+    background: #fff; border: 2.5px dashed #cbd5e1;
+    border-radius: 20px; padding: 32px 24px;
+    margin-bottom: 20px; cursor: pointer; text-align: center;
+    transition: all 0.2s; animation: slideUp 0.6s ease-out;
+  }
+  .dropzone:hover { border-color: #94a3b8; }
+  .dropzone.over {
+    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+    border-color: #2563eb;
+  }
+  .dropzone .title {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 12px; color: #475569; font-weight: 700;
+    font-size: 16px; margin-bottom: 8px;
+  }
+  .dropzone.over .title { color: #1e40af; }
+  .dropzone .hint { font-size: 12px; color: #64748b; line-height: 1.7; }
+  .dropzone code {
+    display: inline-block; margin: 0 4px;
+    padding: 1px 6px; background: #f1f5f9;
+    color: #475569; font-size: 10px;
+    font-family: ui-monospace, monospace; border-radius: 4px;
+  }
+  .dropzone .sub { font-size: 11px; color: #94a3b8; margin-top: 6px; }
+
+  /* IMPORT LOG */
+  .import-log {
+    background: #fff; border-radius: 14px; padding: 12px;
+    margin-bottom: 20px; border: 1px solid #e2e8f0;
+    max-height: 160px; overflow-y: auto;
+  }
+  .import-log .head {
+    display: flex; justify-content: space-between;
+    align-items: center; margin-bottom: 8px;
+  }
+  .import-log .title {
+    font-size: 11px; font-weight: 700; color: #64748b;
+  }
+  .import-log .clear-btn {
+    font-size: 10px; color: #94a3b8;
+    background: none; border: none; cursor: pointer;
+  }
+  .log-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 8px; font-size: 11px;
+  }
+  .log-row.success { color: #047857; }
+  .log-row.error { color: #dc2626; }
+
+  /* MAIN GRID */
+  .grid {
+    display: grid; grid-template-columns: 1fr 380px;
+    gap: 24px; align-items: start;
+  }
+  @media (max-width: 1024px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  /* CARD */
+  .card {
+    background: #fff; border-radius: 20px; overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);
+    border: 1px solid #e2e8f0;
+  }
+  .card-header {
+    background: linear-gradient(135deg, #1e293b, #334155);
+    padding: 16px 24px; color: #f8fafc;
+    display: flex; justify-content: space-between;
+    align-items: center; flex-wrap: wrap; gap: 8px;
+    font-weight: 700; font-size: 14px;
+  }
+  .card-header.gray {
+    background: linear-gradient(135deg, #475569, #64748b);
+  }
+  .card-header .right { display: flex; gap: 8px; align-items: center; }
+  .card-header .label { font-size: 11px; color: #94a3b8; font-weight: 500; }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead tr { background: #f8fafc; }
+  th {
+    padding: 10px 8px; font-size: 11px; font-weight: 700;
+    color: #64748b; text-align: left; letter-spacing: 0.02em;
+  }
+  td {
+    padding: 8px; font-size: 12px; color: #475569;
+    font-variant-numeric: tabular-nums;
+  }
+  tbody tr { border-top: 1px solid #f1f5f9; }
+  tbody tr.empty { background: #fafafa; }
+  tbody tr.empty td { color: #94a3b8; }
+  tbody tr td.month-name {
+    font-weight: 700; color: #1e293b;
+  }
+  tr.total {
+    background: #1e293b; color: #f8fafc;
+  }
+  tr.total td { color: #f8fafc; font-weight: 800; }
+  .month-input {
+    width: 100%; padding: 8px 10px;
+    border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-size: 13px; font-weight: 600; color: #1e293b;
+    outline: none; transition: border-color 0.15s;
+    font-family: inherit; font-variant-numeric: tabular-nums;
+  }
+  .month-input:focus { border-color: #2563eb; }
+  .month-input:hover { border-color: #cbd5e1; }
+  .rpp-cell {
+    font-weight: 700; color: #94a3b8;
+    font-variant-numeric: tabular-nums;
+  }
+  .rpp-cell.passing { color: #059669; }
+
+  /* KPI ROW */
+  .kpi-row { padding: 16px 24px; }
+  .kpi-row .header-line {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .kpi-row h3 { font-weight: 700; font-size: 15px; }
+  .weight-badge {
+    font-size: 10px; font-weight: 700;
+    padding: 2px 8px; border-radius: 5px;
+    background: #eff6ff; color: #2563eb;
+  }
+  .kpi-row .stats {
+    display: flex; gap: 14px; margin-top: 8px;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums; flex-wrap: wrap;
+  }
+  .kpi-row .stats span.lbl { color: #94a3b8; margin-right: 4px; }
+  .kpi-row .stats .target { font-weight: 700; color: #475569; }
+  .kpi-row .stats .actual { font-weight: 700; color: #1e293b; }
+  .kpi-row .subtext {
+    font-size: 11px; color: #94a3b8;
+    margin-top: 6px; font-weight: 500;
+  }
+  .kpi-row .body {
+    display: flex; justify-content: space-between;
+    align-items: flex-start; gap: 16px; flex-wrap: wrap;
+  }
+  .kpi-row .body > .left {
+    flex: 1; min-width: 240px;
+  }
+  .score-badge {
+    border-radius: 10px; padding: 10px 16px;
+    text-align: center; min-width: 90px;
+    background: #f1f5f9;
+  }
+  .score-badge .score-label {
+    font-size: 10px; font-weight: 700;
+    opacity: 0.7; margin-bottom: 2px;
+  }
+  .score-badge .score-num {
+    font-size: 22px; font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .score-badge .score-denom {
+    font-size: 11px; font-weight: 600; opacity: 0.5;
+  }
+  .divider { height: 1px; background: #f1f5f9; margin: 0 24px; }
+
+  /* TOTAL SCORE CARD */
+  .total-card {
+    border-radius: 24px; padding: 28px;
+    color: #fff; position: relative; overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+  }
+  .total-card .deco {
+    position: absolute; top: -40px; right: -40px;
+    width: 160px; height: 160px; border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+  }
+  .total-card .label-top {
+    font-size: 13px; font-weight: 700;
+    opacity: 0.85; margin-bottom: 14px;
+  }
+  .total-card .score-display {
+    display: flex; align-items: baseline; gap: 4px; margin-bottom: 4px;
+  }
+  .total-card .score-num {
+    font-size: 72px; font-weight: 900; line-height: 1;
+    font-variant-numeric: tabular-nums;
+    animation: scoreIn 0.4s ease-out;
+  }
+  .total-card .score-denom {
+    font-size: 20px; font-weight: 500; opacity: 0.5;
+  }
+  .total-card .progress {
+    width: 100%; height: 6px; border-radius: 3px;
+    background: rgba(255,255,255,0.15);
+    overflow: hidden; margin-bottom: 24px;
+  }
+  .total-card .progress-bar {
+    height: 100%; border-radius: 3px;
+    background: rgba(255,255,255,0.85);
+    transition: width 0.6s;
+  }
+  .total-card .bonus-box {
+    background: rgba(255,255,255,0.1); border-radius: 14px;
+    padding: 16px 20px; backdrop-filter: blur(10px);
+  }
+  .total-card .bonus-row {
+    display: flex; justify-content: space-between;
+    align-items: center; margin-bottom: 12px;
+  }
+  .total-card .bonus-amt {
+    font-size: 26px; font-weight: 900;
+    font-variant-numeric: tabular-nums;
+  }
+  .total-card .row-small {
+    display: flex; justify-content: space-between;
+    font-size: 12px; opacity: 0.8; margin-bottom: 4px;
+  }
+  .total-card .hr-thin {
+    height: 1px; background: rgba(255,255,255,0.15);
+    margin-bottom: 10px;
+  }
+
+  /* STATUS ALERT */
+  .alert {
+    border-radius: 16px; padding: 16px 20px;
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .alert .title { font-weight: 700; font-size: 13px; }
+  .alert .msg {
+    font-size: 12px; margin-top: 4px; line-height: 1.6;
+  }
+
+  /* DIST */
+  .dist {
+    background: #fff; border-radius: 16px; padding: 18px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .dist h3 {
+    font-weight: 700; font-size: 13px;
+    margin-bottom: 14px; color: #475569;
+  }
+  .dist-row { margin-bottom: 12px; }
+  .dist-row .head {
+    display: flex; justify-content: space-between;
+    font-size: 11px; font-weight: 600;
+    color: #475569; margin-bottom: 4px;
+  }
+  .dist-row .head span:last-child { font-variant-numeric: tabular-nums; }
+  .dist-row .bar-bg {
+    height: 8px; background: #f1f5f9;
+    border-radius: 4px; overflow: hidden; position: relative;
+  }
+  .dist-row .bar-fill {
+    height: 100%; border-radius: 4px;
+    transition: width 0.4s;
+  }
+  .dist-row .bar-marker {
+    position: absolute; top: -2px; bottom: -2px;
+    left: 83.33%; width: 1.5px; background: #94a3b8;
+  }
+  .dist-foot {
+    font-size: 10px; color: #94a3b8; margin-top: 4px;
+    display: flex; justify-content: space-between;
+  }
+
+  /* INFO BOX */
+  .info-box {
+    border-radius: 14px; padding: 14px 18px;
+    font-size: 11px; line-height: 1.7;
+  }
+  .info-box.warn {
+    background: #fffbeb; border: 1px solid #fcd34d;
+    color: #78350f;
+  }
+  .info-box.gray {
+    background: #f8fafc; border: 1px solid #e2e8f0;
+    color: #64748b; line-height: 1.8;
+  }
+  .info-box .head {
+    font-weight: 700; margin-bottom: 6px; font-size: 12px;
+  }
+  .info-box.gray .head { color: #475569; }
+
+  /* RIGHT col gap */
+  .right-col { display: flex; flex-direction: column; gap: 20px; }
+  .left-col { display: flex; flex-direction: column; gap: 20px; }
+
+  /* SVG inline */
+  .icon { display: inline-flex; }
+  .icon svg { display: block; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div>
+      <div class="badge">
+        <span class="icon" id="icon-trending"></span>
+        BESTEA 行銷經營 KPI ・ v3.3 ・ 單檔 HTML
+      </div>
+      <h1>拖拉式報表匯入 ・ Firebase 雲端同步</h1>
+      <p class="meta">
+        年成長 ≥20% ｜ RPP ≥27,000 ｜ 舊客 ≥28% ｜ 會員 ≥250/月
+        <span class="sync-badge" id="sync-badge"></span>
+      </p>
+      <div class="actions">
+        <button class="btn" id="btn-export-json">📦 下載 JSON 備份</button>
+        <label class="btn" style="display:inline-block;">
+          📂 從備份還原
+          <input type="file" id="json-restore" accept=".json" style="display:none;" />
+        </label>
+        <button class="btn" id="btn-export-csv">📄 匯出 CSV</button>
+      </div>
+    </div>
+
+    <div class="config">
+      <div>
+        <div class="lbl">結算年份</div>
+        <input type="text" id="cfg-year" style="width: 80px;" />
+      </div>
+      <div class="vsep"></div>
+      <div>
+        <div class="lbl">對比基期 (TWD)</div>
+        <input type="number" id="cfg-last-revenue" />
+        <div style="font-size:9px;color:#94a3b8;margin-top:2px;">上一年度官網 GMV</div>
+      </div>
+      <div class="vsep"></div>
+      <div>
+        <div class="lbl">獎金池係數</div>
+        <input type="number" id="cfg-bonus-rate" step="0.001" style="width:80px;" />
+        <div style="font-size:9px;color:#94a3b8;margin-top:2px;" id="bonus-rate-hint"></div>
+      </div>
+      <div class="vsep"></div>
+      <div>
+        <div class="lbl">獎金池</div>
+        <div class="pool" id="bonus-pool-display">$0</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- DROP ZONE -->
+  <div class="dropzone" id="dropzone">
+    <input type="file" id="file-input" accept=".csv" multiple style="display:none;" />
+    <div class="title">
+      <span class="icon" id="icon-upload"></span>
+      拖曳 CSV 報表至此區或點擊選擇檔案
+    </div>
+    <div class="hint">
+      支援自動辨識：
+      <code>OnlineGrossMerchandiseValue</code>
+      <code>OnlineNewlyAddedMembers</code>
+      <code>OnlineTotalShoppers</code>
+      <code>line-broadcast-history</code>
+    </div>
+    <div class="sub">可一次拖入多個檔案 ・ 系統會自動合併到對應月份 ・ 雲端自動同步</div>
+  </div>
+
+  <!-- IMPORT LOG -->
+  <div class="import-log" id="import-log" style="display:none;">
+    <div class="head">
+      <div class="title">匯入紀錄</div>
+      <button class="clear-btn" id="btn-clear-log">清除</button>
+    </div>
+    <div id="log-list"></div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="grid">
+
+    <!-- LEFT -->
+    <div class="left-col">
+
+      <!-- 月度資料表 -->
+      <div class="card">
+        <div class="card-header">
+          <span style="display:flex;align-items:center;gap:8px;">📅 <span id="year-label">2026</span> 月度資料</span>
+          <div class="right">
+            <span class="label" id="months-filled-label">已填 0/12</span>
+            <button class="btn-dark" id="btn-clear-data">清空資料</button>
+            <button class="btn-dark" id="btn-reset">重置全部</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>月份</th>
+                <th>官網營收</th>
+                <th>推播則數</th>
+                <th>推播營收</th>
+                <th>當月RPP</th>
+                <th>新增會員</th>
+                <th>舊客數</th>
+                <th>總顧客</th>
+              </tr>
+            </thead>
+            <tbody id="month-rows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- KPI 評分 -->
+      <div class="card">
+        <div class="card-header gray">
+          <span style="display:flex;align-items:center;gap:8px;">
+            <span class="icon" id="icon-trophy"></span>
+            KPI 各項評分
+          </span>
+        </div>
+        <div id="kpi-rows"></div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT -->
+    <div class="right-col">
+      <div class="total-card" id="total-card">
+        <div class="deco"></div>
+        <div class="label-top" id="total-label-top">2026 年度 KPI 總分</div>
+        <div class="score-display">
+          <span class="score-num" id="total-score">0</span>
+          <span class="score-denom">/ 120</span>
+        </div>
+        <div class="progress">
+          <div class="progress-bar" id="total-progress" style="width:0%;"></div>
+        </div>
+        <div class="bonus-box">
+          <div class="bonus-row">
+            <span style="font-size:13px;font-weight:500;">實領獎金</span>
+            <span class="bonus-amt" id="actual-bonus">$0</span>
+          </div>
+          <div class="hr-thin"></div>
+          <div class="row-small"><span>獎金池</span><span id="bonus-pool-2">$0</span></div>
+          <div class="row-small"><span>得分係數</span><span id="score-coef">0.000</span></div>
+          <div class="row-small"><span>計算</span><span id="calc-formula">—</span></div>
+        </div>
+      </div>
+
+      <div id="status-alert"></div>
+
+      <div class="dist">
+        <h3>各項達成率分布</h3>
+        <div id="dist-rows"></div>
+        <div class="dist-foot">
+          <span>0%</span><span>100%</span><span>120%</span>
+        </div>
+      </div>
+
+      <div class="info-box warn">
+        <div class="head">⚠️ 安全提醒</div>
+        <div>此版本採免登入公開模式，建議：</div>
+        <div>① 不公開分享部署網址或檔案</div>
+        <div>② 每月按「下載 JSON 備份」存到 Google Drive</div>
+        <div>③ 月度資料即時同步雲端，跨裝置可用</div>
+      </div>
+
+      <div class="info-box gray">
+        <div class="head">公式速查</div>
+        <div id="formula-1">獎金池 = 官網年營收 × 0.40%</div>
+        <div>實領獎金 = 獎金池 × (KPI得分 ÷ 100)</div>
+        <div>達成率係數：≥120%×1.2｜100%×1.0｜80%×0.6｜60%×0.3｜&lt;60%×0</div>
+        <div style="margin-top:6px;color:#0891b2;font-weight:600;">範圍：官網（Shopline），不含蝦皮</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ────────────── JS ────────────── -->
+<script type="module">
+
+// ─── Firebase CDN 動態載入 ───
+let firestoreDB = null;
+let firebaseFns = null;
+let firebaseAvailable = null;
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBMFHd-R4QK6mz1l5WAXAvJ8mkKCG4JJys",
+  authDomain: "meow-bestea-kpi.firebaseapp.com",
+  projectId: "meow-bestea-kpi",
+  storageBucket: "meow-bestea-kpi.firebasestorage.app",
+  messagingSenderId: "940376640387",
+  appId: "1:940376640387:web:011cad147ee3b829ff44b6",
+  measurementId: "G-7RNC46HKMV"
+};
+
+const FIREBASE_VERSION = "10.13.2";
+
+async function initFirebase() {
+  if (firebaseAvailable === false) return null;
+  if (firestoreDB && firebaseFns) return { db: firestoreDB, fns: firebaseFns };
+  try {
+    const appMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`);
+    const fsMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore.js`);
+    const app = appMod.initializeApp(firebaseConfig);
+    firestoreDB = fsMod.getFirestore(app);
+    firebaseFns = {
+      doc: fsMod.doc,
+      setDoc: fsMod.setDoc,
+      onSnapshot: fsMod.onSnapshot
+    };
+    firebaseAvailable = true;
+    console.log("✓ Firebase 已載入");
+    return { db: firestoreDB, fns: firebaseFns };
+  } catch (err) {
+    console.warn("Firebase 載入失敗，降級為本機儲存模式：", err.message);
+    firebaseAvailable = false;
+    return null;
+  }
+}
+
+// ─── 設定 ───
+const KPI_CONFIG = {
+  growthRate:    { target: 0.2,   weight: 40, label: "年成長率",     icon: "trending", color: "#2563eb" },
+  rpp:           { target: 27000, weight: 30, label: "平均 RPP",     icon: "send",     color: "#059669" },
+  returningRate: { target: 0.28,  weight: 20, label: "舊客回購率",   icon: "refresh",  color: "#d97706" },
+  memberGrowth:  { target: 250,   weight: 10, label: "會員增長(月)", icon: "users",    color: "#7c3aed" }
+};
+
+const MONTHS = ["01","02","03","04","05","06","07","08","09","10","11","12"];
+const STORAGE_KEY = "bestea-marketing-kpi-v3-html";
+const FIRESTORE_DOC_PATH = ["marketing_kpi", "main"];
+const EMPTY_MONTH = {
+  revenue: 0, broadcastCount: 0, broadcastRevenue: 0,
+  members: 0, returningCustomers: 0, totalCustomers: 0
+};
+
+// ─── State ───
+const state = {
+  year: "2026",
+  lastYearRevenue: 15038941,
+  bonusRate: 0.004,
+  monthly: buildEmptyMonthly(),
+  importLogs: [],
+  syncStatus: "connecting",
+  lastSyncedAt: null
+};
+
+let initialLoadDone = false;
+let isWriting = false;
+let writeTimer = null;
+let syncDocRef = null;
+let unsubscribe = null;
+
+function buildEmptyMonthly() {
+  const o = {};
+  MONTHS.forEach(m => o[m] = { ...EMPTY_MONTH });
+  return o;
+}
+
+function loadLocalCache() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch { return null; }
+}
+
+function saveLocalCache() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      year: state.year,
+      lastYearRevenue: state.lastYearRevenue,
+      bonusRate: state.bonusRate,
+      monthly: state.monthly
+    }));
+  } catch {}
+}
+
+// ─── 計分 ───
+function scoreByAchievement(actual, target, weight) {
+  if (target <= 0) return 0;
+  const rate = actual / target;
+  let coef;
+  if (rate >= 1.2) coef = 1.2;
+  else if (rate >= 1.0) coef = 1.0 + (rate - 1.0) * 1.0;
+  else if (rate >= 0.8) coef = 0.6 + (rate - 0.8) * 2.0;
+  else if (rate >= 0.6) coef = 0.3 + (rate - 0.6) * 1.5;
+  else coef = 0;
+  return Math.round(weight * coef * 10) / 10;
+}
+
+function computeSummary() {
+  let totalRevenue = 0, totalBroadcasts = 0, totalBroadcastRevenue = 0;
+  let totalMembers = 0, totalReturning = 0, totalCustomers = 0;
+  let monthsWithData = 0, memberMonthsCount = 0;
+
+  MONTHS.forEach(m => {
+    const d = state.monthly[m] || EMPTY_MONTH;
+    const has = d.revenue > 0 || d.broadcastCount > 0 || d.members > 0 || d.totalCustomers > 0;
+    if (has) monthsWithData++;
+    if (d.members > 0) memberMonthsCount++;
+    totalRevenue += +d.revenue || 0;
+    totalBroadcasts += +d.broadcastCount || 0;
+    totalBroadcastRevenue += +d.broadcastRevenue || 0;
+    totalMembers += +d.members || 0;
+    totalReturning += +d.returningCustomers || 0;
+    totalCustomers += +d.totalCustomers || 0;
+  });
+
+  const growthRate = state.lastYearRevenue > 0
+    ? (totalRevenue - state.lastYearRevenue) / state.lastYearRevenue : 0;
+  const rpp = totalBroadcasts > 0 ? totalBroadcastRevenue / totalBroadcasts : 0;
+  const returningRate = totalCustomers > 0 ? totalReturning / totalCustomers : 0;
+  const monthlyMemberAvg = memberMonthsCount > 0 ? totalMembers / memberMonthsCount : 0;
+
+  return {
+    monthsWithData, totalRevenue, growthRate,
+    totalBroadcasts, totalBroadcastRevenue, rpp,
+    totalMembers, memberMonthsCount, monthlyMemberAvg,
+    totalReturning, totalCustomers, returningRate
+  };
+}
+
+function computeScores(summary) {
+  const sGrowth = scoreByAchievement(summary.growthRate, KPI_CONFIG.growthRate.target, KPI_CONFIG.growthRate.weight);
+  const sRpp = scoreByAchievement(summary.rpp, KPI_CONFIG.rpp.target, KPI_CONFIG.rpp.weight);
+  const sReturning = scoreByAchievement(summary.returningRate, KPI_CONFIG.returningRate.target, KPI_CONFIG.returningRate.weight);
+  const sMember = scoreByAchievement(summary.monthlyMemberAvg, KPI_CONFIG.memberGrowth.target, KPI_CONFIG.memberGrowth.weight);
+  const total = Math.round((sGrowth + sRpp + sReturning + sMember) * 10) / 10;
+  const pool = Math.round(summary.totalRevenue * state.bonusRate);
+  const actual = Math.round(pool * (total / 100));
+  return { sGrowth, sRpp, sReturning, sMember, total, pool, actual };
+}
+
+function achievement(key, summary) {
+  const t = KPI_CONFIG[key].target;
+  let a;
+  if (key === "growthRate") a = summary.growthRate;
+  else if (key === "rpp") a = summary.rpp;
+  else if (key === "returningRate") a = summary.returningRate;
+  else a = summary.monthlyMemberAvg;
+  return t > 0 ? a / t : 0;
+}
+
+// ─── CSV 解析 ───
+function parseCSV(text) {
+  text = text.replace(/^\uFEFF/, "");
+  const lines = text.split(/\r?\n/);
+  const result = [];
+  for (const line of lines) {
+    if (!line.trim()) { result.push([]); continue; }
+    const cells = []; let cur = ""; let inQuote = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuote && line[i+1] === '"') { cur += '"'; i++; }
+        else inQuote = !inQuote;
+      } else if (ch === ',' && !inQuote) {
+        cells.push(cur); cur = "";
+      } else cur += ch;
+    }
+    cells.push(cur);
+    result.push(cells.map(c => c.trim()));
+  }
+  return result;
+}
+
+function detectReportType(filename, rows) {
+  const fn = filename.toLowerCase();
+  if (fn.includes("grossmerchandisevalue")) return "gmv";
+  if (fn.includes("newlyaddedmembers")) return "members";
+  if (fn.includes("totalshoppers")) return "shoppers";
+  if (fn.includes("line-broadcast")) return "broadcast";
+  const flat = rows.flat().join("|");
+  if (flat.includes("成交總額") && flat.includes("平均訂單金額")) return "gmv";
+  if (flat.includes("新增會員數")) return "members";
+  if (flat.includes("舊客占比") || flat.includes("舊客消費顧客數")) return "shoppers";
+  if (flat.includes("推播時間") && flat.includes("營業額")) return "broadcast";
+  return "unknown";
+}
+
+function parseGMV(rows) {
+  const monthly = {}; let year = null;
+  for (const row of rows) {
+    if (row.length < 4 || row[0] !== "分析區間") continue;
+    const m = (row[2] || "").match(/(\d{4})\/(\d{2})\/\d{2}/);
+    if (!m) continue;
+    year = m[1];
+    const rev = parseInt(row[3].replace(/,/g, ""), 10);
+    if (!isNaN(rev)) monthly[m[2]] = { revenue: rev };
+  }
+  return { type: "gmv", year, monthly };
+}
+
+function parseMembers(rows) {
+  const monthly = {}; let year = null;
+  for (const row of rows) {
+    if (row.length < 4 || row[0] !== "分析區間") continue;
+    const m = (row[2] || "").match(/(\d{4})\/(\d{2})\/\d{2}/);
+    if (!m) continue;
+    year = m[1];
+    const v = parseInt(row[3].replace(/,/g, ""), 10);
+    if (!isNaN(v)) monthly[m[2]] = { members: v };
+  }
+  return { type: "members", year, monthly };
+}
+
+function parseShoppers(rows) {
+  const monthly = {}; let year = null;
+  for (const row of rows) {
+    if (row.length < 6 || row[0] !== "分析區間") continue;
+    const m = (row[2] || "").match(/(\d{4})\/(\d{2})\/\d{2}/);
+    if (!m) continue;
+    year = m[1];
+    const tc = parseInt(row[3].replace(/,/g, ""), 10);
+    const rc = parseInt(row[5].replace(/,/g, ""), 10);
+    if (!isNaN(tc) && !isNaN(rc)) {
+      monthly[m[2]] = { totalCustomers: tc, returningCustomers: rc };
+    }
+  }
+  return { type: "shoppers", year, monthly };
+}
+
+function parseBroadcast(rows) {
+  const monthly = {}; let year = null;
+  let headerIdx = -1;
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i].includes("推播時間")) { headerIdx = i; break; }
+  }
+  if (headerIdx < 0) return { type: "broadcast", year: null, monthly: {} };
+  const headers = rows[headerIdx];
+  const idxTime = headers.indexOf("推播時間");
+  const idxStatus = headers.indexOf("狀態");
+  const idxRev = headers.indexOf("營業額");
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (row.length <= idxTime) continue;
+    const t = row[idxTime] || "";
+    const m = t.match(/(\d{4})-(\d{2})/);
+    if (!m) continue;
+    if ((row[idxStatus] || "") !== "完成") continue;
+    year = m[1];
+    const rs = (row[idxRev] || "").replace(/NT\$/g, "").replace(/,/g, "").trim();
+    const r = parseFloat(rs) || 0;
+    if (!monthly[m[2]]) monthly[m[2]] = { broadcastCount: 0, broadcastRevenue: 0 };
+    monthly[m[2]].broadcastCount += 1;
+    monthly[m[2]].broadcastRevenue += r;
+  }
+  return { type: "broadcast", year, monthly };
+}
+
+// ─── 圖示 ───
+const ICON_PATHS = {
+  trending: "M23 6l-9.5 9.5-5-5L1 18 M17 6h6v6",
+  send: "M22 2L11 13 M22 2l-7 20-4-9-9-4 20-7z",
+  refresh: "M23 4v6h-6 M1 20v-6h6 M3.51 9a9 9 0 0114.85-3.36L23 10 M1 14l4.64 4.36A9 9 0 0020.49 15",
+  users: "M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2 M9 3a4 4 0 110 8 4 4 0 010-8z M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75",
+  star: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
+  alert: "M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z M12 9v4M12 17h.01",
+  info: "M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z M12 16v-4M12 8h.01",
+  upload: "M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4 M17 8l-5-5-5 5 M12 3v12",
+  trophy: "M6 9H4.5a2.5 2.5 0 010-5H6 M18 9h1.5a2.5 2.5 0 000-5H18 M4 22h16 M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22 M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22 M18 2H6v7a6 6 0 0012 0V2z",
+  cloud: "M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z",
+  cloudOff: "M22.61 16.95A5 5 0 0118 20H7a7 7 0 01-5.06-11.85 M9.91 4.18a8 8 0 016.83 5.82H18a5 5 0 014.5 7.05M1 1l22 22"
+};
+function svgIcon(name, size = 20, color = "currentColor", strokeWidth = 2) {
+  const d = ICON_PATHS[name];
+  if (!d) return "";
+  const paths = d.split(" M").map((p, i) => `<path d="${i === 0 ? p : "M" + p}" />`).join("");
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+}
+
+// ─── 渲染 ───
+function render() {
+  const summary = computeSummary();
+  const scores = computeScores(summary);
+
+  // Year label
+  document.getElementById("year-label").textContent = state.year;
+  document.getElementById("total-label-top").textContent = `${state.year} 年度 KPI 總分`;
+
+  // Top config display
+  const ratePct = (state.bonusRate * 100).toFixed(2);
+  document.getElementById("bonus-rate-hint").textContent = `${ratePct}% × 官網營收`;
+  document.getElementById("bonus-pool-display").textContent = "$" + scores.pool.toLocaleString();
+  document.getElementById("bonus-pool-2").textContent = "$" + scores.pool.toLocaleString();
+  document.getElementById("formula-1").textContent = `獎金池 = 官網年營收 × ${ratePct}%`;
+
+  // Months filled
+  document.getElementById("months-filled-label").textContent = `已填 ${summary.monthsWithData}/12`;
+
+  // 月度資料表
+  const monthRows = document.getElementById("month-rows");
+  monthRows.innerHTML = "";
+  MONTHS.forEach(m => {
+    const d = state.monthly[m] || EMPTY_MONTH;
+    const monthRpp = d.broadcastCount > 0 ? Math.round(d.broadcastRevenue / d.broadcastCount) : 0;
+    const has = d.revenue > 0 || d.broadcastCount > 0 || d.members > 0 || d.totalCustomers > 0;
+    const tr = document.createElement("tr");
+    tr.className = has ? "" : "empty";
+    tr.innerHTML = `
+      <td class="month-name">${m} 月</td>
+      <td><input type="number" class="month-input" data-m="${m}" data-f="revenue" value="${d.revenue || ''}" placeholder="0" /></td>
+      <td><input type="number" class="month-input" data-m="${m}" data-f="broadcastCount" value="${d.broadcastCount || ''}" placeholder="0" /></td>
+      <td><input type="number" class="month-input" data-m="${m}" data-f="broadcastRevenue" value="${d.broadcastRevenue || ''}" placeholder="0" /></td>
+      <td class="rpp-cell ${monthRpp >= KPI_CONFIG.rpp.target ? 'passing' : ''}">${monthRpp > 0 ? monthRpp.toLocaleString() : '—'}</td>
+      <td><input type="number" class="month-input" data-m="${m}" data-f="members" value="${d.members || ''}" placeholder="0" /></td>
+      <td><input type="number" class="month-input" data-m="${m}" data-f="returningCustomers" value="${d.returningCustomers || ''}" placeholder="0" /></td>
+      <td><input type="number" class="month-input" data-m="${m}" data-f="totalCustomers" value="${d.totalCustomers || ''}" placeholder="0" /></td>
+    `;
+    monthRows.appendChild(tr);
+  });
+  // 合計列
+  const totalTr = document.createElement("tr");
+  totalTr.className = "total";
+  totalTr.innerHTML = `
+    <td>合計</td>
+    <td>$${summary.totalRevenue.toLocaleString()}</td>
+    <td>${summary.totalBroadcasts}</td>
+    <td>$${summary.totalBroadcastRevenue.toLocaleString()}</td>
+    <td style="color:#fbbf24;">${summary.rpp > 0 ? Math.round(summary.rpp).toLocaleString() : '—'}</td>
+    <td>${summary.totalMembers}</td>
+    <td>${summary.totalReturning}</td>
+    <td>${summary.totalCustomers}</td>
+  `;
+  monthRows.appendChild(totalTr);
+
+  // 綁定 input change
+  monthRows.querySelectorAll("input.month-input").forEach(inp => {
+    inp.addEventListener("input", e => {
+      const m = e.target.dataset.m;
+      const f = e.target.dataset.f;
+      const v = Math.max(0, Number(e.target.value) || 0);
+      if (!state.monthly[m]) state.monthly[m] = { ...EMPTY_MONTH };
+      state.monthly[m][f] = v;
+      onStateChange();
+    });
+  });
+
+  // KPI 評分
+  const kpiRows = document.getElementById("kpi-rows");
+  kpiRows.innerHTML = "";
+  const kpiMeta = [
+    { key: "growthRate", title: "年成長率",
+      target: `≥ ${(KPI_CONFIG.growthRate.target * 100).toFixed(0)}%`,
+      actual: `${(summary.growthRate * 100).toFixed(2)}%`,
+      score: scores.sGrowth, weight: KPI_CONFIG.growthRate.weight,
+      subtext: `官網 GMV ${summary.totalRevenue.toLocaleString()} vs 基期 ${state.lastYearRevenue.toLocaleString()}`,
+      color: KPI_CONFIG.growthRate.color, icon: "trending"
+    },
+    { key: "rpp", title: "平均 RPP（每則推播營收）",
+      target: `≥ ${KPI_CONFIG.rpp.target.toLocaleString()}`,
+      actual: Math.round(summary.rpp).toLocaleString(),
+      score: scores.sRpp, weight: KPI_CONFIG.rpp.weight,
+      subtext: `${summary.totalBroadcasts} 則推播 ・ 帶單 ${summary.totalBroadcastRevenue.toLocaleString()}`,
+      color: KPI_CONFIG.rpp.color, icon: "send"
+    },
+    { key: "returningRate", title: "舊客回購率",
+      target: `≥ ${(KPI_CONFIG.returningRate.target * 100).toFixed(0)}%`,
+      actual: `${(summary.returningRate * 100).toFixed(2)}%`,
+      score: scores.sReturning, weight: KPI_CONFIG.returningRate.weight,
+      subtext: `舊客 ${summary.totalReturning} / 總顧客 ${summary.totalCustomers}`,
+      color: KPI_CONFIG.returningRate.color, icon: "refresh"
+    },
+    { key: "memberGrowth", title: "官網會員增長（月均）",
+      target: `≥ ${KPI_CONFIG.memberGrowth.target} 人/月`,
+      actual: `${summary.monthlyMemberAvg.toFixed(0)} 人/月`,
+      score: scores.sMember, weight: KPI_CONFIG.memberGrowth.weight,
+      subtext: `年累計 ${summary.totalMembers} 人 / ${summary.memberMonthsCount || 0} 個月有資料`,
+      color: KPI_CONFIG.memberGrowth.color, icon: "users"
+    }
+  ];
+  kpiMeta.forEach((meta, i) => {
+    const ach = achievement(meta.key, summary);
+    const achPct = ach * 100;
+    let badgeColor = "#475569";
+    if (ach >= 1.0) badgeColor = "#059669";
+    else if (ach >= 0.8) badgeColor = "#d97706";
+    else if (ach >= 0.6) badgeColor = "#dc2626";
+    else if (ach > 0) badgeColor = "#7f1d1d";
+
+    const div = document.createElement("div");
+    div.className = "kpi-row";
+    div.innerHTML = `
+      <div class="body">
+        <div class="left">
+          <div class="header-line">
+            <span class="icon" style="color:${meta.color}">${svgIcon(meta.icon, 20, meta.color)}</span>
+            <h3>${meta.title}</h3>
+            <span class="weight-badge">權重 ${meta.weight}%</span>
+          </div>
+          <div class="stats">
+            <div><span class="lbl">目標</span><span class="target">${meta.target}</span></div>
+            <div><span class="lbl">實際</span><span class="actual">${meta.actual}</span></div>
+            <div><span class="lbl">達成率</span><span style="font-weight:800;color:${badgeColor};">${achPct.toFixed(1)}%</span></div>
+          </div>
+          <p class="subtext">${meta.subtext}</p>
+        </div>
+        <div class="score-badge" style="background:${badgeColor === '#475569' ? '#f1f5f9' : badgeColor + '15'};color:${badgeColor};">
+          <div class="score-label">得分</div>
+          <div class="score-num">${meta.score}<span class="score-denom">/${meta.weight}</span></div>
+        </div>
+      </div>
+    `;
+    kpiRows.appendChild(div);
+    if (i < kpiMeta.length - 1) {
+      const div2 = document.createElement("div");
+      div2.className = "divider";
+      kpiRows.appendChild(div2);
+    }
+  });
+
+  // 總分卡
+  const totalCard = document.getElementById("total-card");
+  let bg;
+  if (scores.total >= 100) bg = "linear-gradient(145deg, #047857, #059669, #065f46)";
+  else if (scores.total >= 80) bg = "linear-gradient(145deg, #1e40af, #2563eb, #1d4ed8)";
+  else if (scores.total >= 60) bg = "linear-gradient(145deg, #b45309, #d97706, #ca8a04)";
+  else if (scores.total >= 40) bg = "linear-gradient(145deg, #b91c1c, #dc2626, #ef4444)";
+  else bg = "linear-gradient(145deg, #1f2937, #374151, #4b5563)";
+  totalCard.style.background = bg;
+  document.getElementById("total-score").textContent = scores.total;
+  document.getElementById("total-progress").style.width = Math.min((scores.total / 120) * 100, 100) + "%";
+  document.getElementById("actual-bonus").textContent = "$" + scores.actual.toLocaleString();
+  document.getElementById("score-coef").textContent = (scores.total / 100).toFixed(3);
+  document.getElementById("calc-formula").textContent = `${scores.pool.toLocaleString()} × ${(scores.total / 100).toFixed(3)}`;
+
+  // 達成率分布
+  const distRows = document.getElementById("dist-rows");
+  distRows.innerHTML = "";
+  [
+    { label: "年成長率", rate: achievement("growthRate", summary), color: "#2563eb" },
+    { label: "平均 RPP", rate: achievement("rpp", summary), color: "#059669" },
+    { label: "舊客回購率", rate: achievement("returningRate", summary), color: "#d97706" },
+    { label: "會員增長", rate: achievement("memberGrowth", summary), color: "#7c3aed" }
+  ].forEach(item => {
+    const w = Math.min(item.rate * 100, 120) / 1.2;
+    distRows.innerHTML += `
+      <div class="dist-row">
+        <div class="head">
+          <span>${item.label}</span>
+          <span>${(item.rate * 100).toFixed(1)}%</span>
+        </div>
+        <div class="bar-bg">
+          <div class="bar-fill" style="width:${w}%;background:${item.color};"></div>
+          <div class="bar-marker"></div>
+        </div>
+      </div>
+    `;
+  });
+
+  // Status alert
+  renderStatusAlert(scores.total);
+
+  // Sync badge
+  renderSyncBadge();
+
+  // Import logs
+  renderLogs();
+}
+
+function renderSyncBadge() {
+  const el = document.getElementById("sync-badge");
+  let bg, color, text, iconHtml;
+  if (state.syncStatus === "synced") {
+    bg = "#f0fdf4"; color = "#15803d";
+    text = state.lastSyncedAt
+      ? `已同步 ・ ${new Date(state.lastSyncedAt).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" })}`
+      : "已同步";
+    iconHtml = svgIcon("cloud", 12, color);
+  } else if (state.syncStatus === "syncing") {
+    bg = "#eff6ff"; color = "#1e40af"; text = "雲端同步中…";
+    iconHtml = svgIcon("cloud", 12, color);
+  } else if (state.syncStatus === "connecting") {
+    bg = "#f1f5f9"; color = "#64748b"; text = "連線雲端中…";
+    iconHtml = svgIcon("cloud", 12, color);
+  } else if (state.syncStatus === "error") {
+    bg = "#fef2f2"; color = "#dc2626"; text = "雲端離線（僅本機儲存）";
+    iconHtml = svgIcon("cloudOff", 12, color);
+  } else {
+    bg = "#f1f5f9"; color = "#64748b"; text = "—";
+    iconHtml = svgIcon("cloudOff", 12, color);
+  }
+  el.style.background = bg;
+  el.style.color = color;
+  el.innerHTML = `${iconHtml} ${text}`;
+}
+
+function renderStatusAlert(score) {
+  const el = document.getElementById("status-alert");
+  let bg, border, titleColor, textColor, title, msg, iconName;
+  if (score >= 100) {
+    bg = "linear-gradient(135deg, #ecfdf5, #d1fae5)"; border = "#a7f3d0";
+    titleColor = "#065f46"; textColor = "#047857";
+    title = `${state.year} 卓越達標 🎉`;
+    msg = "全年表現超越目標，獎金池將以高係數發放。";
+    iconName = "star";
+  } else if (score >= 80) {
+    bg = "linear-gradient(135deg, #eff6ff, #dbeafe)"; border = "#93c5fd";
+    titleColor = "#1e40af"; textColor = "#1d4ed8";
+    title = "績效良好";
+    msg = "整體達標水準健康，可檢視未滿項目作為精進方向。";
+    iconName = "trending";
+  } else if (score >= 60) {
+    bg = "linear-gradient(135deg, #fffbeb, #fef3c7)"; border = "#fcd34d";
+    titleColor = "#78350f"; textColor = "#92400e";
+    title = "尚可，有改善空間";
+    msg = "部分指標未達目標，建議拆解原因檢討。";
+    iconName = "alert";
+  } else if (score >= 40) {
+    bg = "linear-gradient(135deg, #fef2f2, #fee2e2)"; border = "#fca5a5";
+    titleColor = "#991b1b"; textColor = "#b91c1c";
+    title = "績效預警";
+    msg = "多數指標未達標，建議召開檢討會議找出根因。";
+    iconName = "alert";
+  } else {
+    bg = "linear-gradient(135deg, #f9fafb, #f3f4f6)"; border = "#d1d5db";
+    titleColor = "#1f2937"; textColor = "#4b5563";
+    title = "資料尚未完整";
+    msg = "請拖入 CSV 報表或手動填入月度資料以查看結算結果。";
+    iconName = "info";
+  }
+  el.innerHTML = `
+    <div class="alert" style="background:${bg};border:1px solid ${border};">
+      <span class="icon" style="color:${titleColor};margin-top:2px;flex-shrink:0;">${svgIcon(iconName, 20, titleColor)}</span>
+      <div>
+        <div class="title" style="color:${titleColor};">${title}</div>
+        <div class="msg" style="color:${textColor};">${msg}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderLogs() {
+  const wrap = document.getElementById("import-log");
+  const list = document.getElementById("log-list");
+  if (state.importLogs.length === 0) {
+    wrap.style.display = "none";
+    return;
+  }
+  wrap.style.display = "block";
+  list.innerHTML = "";
+  state.importLogs.forEach(log => {
+    const row = document.createElement("div");
+    row.className = "log-row " + log.status;
+    row.innerHTML = `${log.status === "success" ? "✓" : "✗"} ${log.msg}`;
+    list.appendChild(row);
+  });
+}
+
+// ─── State 變更觸發 ───
+function onStateChange() {
+  saveLocalCache();
+  render();
+  // Firebase 寫入（debounce）
+  if (!initialLoadDone) return;
+  if (writeTimer) clearTimeout(writeTimer);
+  writeTimer = setTimeout(async () => {
+    const fb = await initFirebase();
+    if (!fb) {
+      state.syncStatus = "error";
+      renderSyncBadge();
+      return;
+    }
+    try {
+      isWriting = true;
+      state.syncStatus = "syncing";
+      renderSyncBadge();
+      const ref = fb.fns.doc(fb.db, FIRESTORE_DOC_PATH[0], FIRESTORE_DOC_PATH[1]);
+      const now = new Date().toISOString();
+      await fb.fns.setDoc(ref, {
+        year: state.year,
+        lastYearRevenue: state.lastYearRevenue,
+        bonusRate: state.bonusRate,
+        monthlyData: state.monthly,
+        updatedAt: now
+      }, { merge: true });
+      state.lastSyncedAt = now;
+      state.syncStatus = "synced";
+      renderSyncBadge();
+    } catch (err) {
+      console.error("Firestore 寫入失敗：", err);
+      state.syncStatus = "error";
+      renderSyncBadge();
+    } finally {
+      setTimeout(() => { isWriting = false; }, 500);
+    }
+  }, 1500);
+}
+
+// ─── 上傳處理 ───
+async function handleFiles(fileList) {
+  const files = Array.from(fileList).filter(f => f.name.toLowerCase().endsWith(".csv"));
+  if (files.length === 0) {
+    state.importLogs.unshift({ status: "error", msg: "請選擇 .csv 檔案" });
+    renderLogs();
+    return;
+  }
+  const newLogs = [];
+  const updates = {};
+  for (const file of files) {
+    try {
+      const text = await file.text();
+      const rows = parseCSV(text);
+      const type = detectReportType(file.name, rows);
+      let parsed = null, label = "";
+      if (type === "gmv") { parsed = parseGMV(rows); label = "官網成交總額"; }
+      else if (type === "members") { parsed = parseMembers(rows); label = "新增會員"; }
+      else if (type === "shoppers") { parsed = parseShoppers(rows); label = "消費顧客（含舊客）"; }
+      else if (type === "broadcast") { parsed = parseBroadcast(rows); label = "LINE 推播"; }
+      if (!parsed || Object.keys(parsed.monthly).length === 0) {
+        newLogs.push({ status: "error", msg: `${file.name} 無法識別或無資料` });
+        continue;
+      }
+      Object.entries(parsed.monthly).forEach(([m, d]) => {
+        if (!updates[m]) updates[m] = {};
+        Object.assign(updates[m], d);
+      });
+      newLogs.push({
+        status: "success",
+        msg: `${file.name} → ${label}（${parsed.year || "?"}年，${Object.keys(parsed.monthly).length}個月）`
+      });
+    } catch (err) {
+      newLogs.push({ status: "error", msg: `${file.name} 解析失敗：${err.message}` });
+    }
+  }
+  if (Object.keys(updates).length > 0) {
+    Object.entries(updates).forEach(([m, d]) => {
+      if (!state.monthly[m]) state.monthly[m] = { ...EMPTY_MONTH };
+      state.monthly[m] = { ...state.monthly[m], ...d };
+    });
+  }
+  state.importLogs = [...newLogs, ...state.importLogs].slice(0, 20);
+  onStateChange();
+}
+
+// ─── 初始化 ───
+function init() {
+  // 載入 localStorage
+  const cached = loadLocalCache();
+  if (cached) {
+    state.year = cached.year || "2026";
+    state.lastYearRevenue = cached.lastYearRevenue ?? 15038941;
+    state.bonusRate = cached.bonusRate ?? 0.004;
+    state.monthly = cached.monthly || buildEmptyMonthly();
+  }
+
+  // 設定 input 連結
+  const yearInput = document.getElementById("cfg-year");
+  yearInput.value = state.year;
+  yearInput.addEventListener("input", e => { state.year = e.target.value; onStateChange(); });
+
+  const lastRev = document.getElementById("cfg-last-revenue");
+  lastRev.value = state.lastYearRevenue;
+  lastRev.addEventListener("input", e => { state.lastYearRevenue = Number(e.target.value) || 0; onStateChange(); });
+
+  const rate = document.getElementById("cfg-bonus-rate");
+  rate.value = state.bonusRate;
+  rate.addEventListener("input", e => { state.bonusRate = Number(e.target.value) || 0; onStateChange(); });
+
+  // 圖示填入
+  document.getElementById("icon-trending").innerHTML = svgIcon("trending", 16, "#f8fafc");
+  document.getElementById("icon-upload").innerHTML = svgIcon("upload", 20);
+  document.getElementById("icon-trophy").innerHTML = svgIcon("trophy", 20, "#f8fafc");
+
+  // Drop zone
+  const dz = document.getElementById("dropzone");
+  const fi = document.getElementById("file-input");
+  dz.addEventListener("click", () => fi.click());
+  dz.addEventListener("dragover", e => { e.preventDefault(); dz.classList.add("over"); });
+  dz.addEventListener("dragleave", () => dz.classList.remove("over"));
+  dz.addEventListener("drop", e => {
+    e.preventDefault();
+    dz.classList.remove("over");
+    handleFiles(e.dataTransfer.files);
+  });
+  fi.addEventListener("change", e => {
+    if (e.target.files) handleFiles(e.target.files);
+    e.target.value = "";
+  });
+
+  // 按鈕
+  document.getElementById("btn-clear-data").addEventListener("click", () => {
+    if (!confirm("確定要清空所有月份資料？（會同步雲端）")) return;
+    state.monthly = buildEmptyMonthly();
+    onStateChange();
+  });
+  document.getElementById("btn-reset").addEventListener("click", () => {
+    if (!confirm("確定要完全重置（含設定）？")) return;
+    state.year = "2026";
+    state.lastYearRevenue = 15038941;
+    state.bonusRate = 0.004;
+    state.monthly = buildEmptyMonthly();
+    state.importLogs = [];
+    yearInput.value = state.year;
+    lastRev.value = state.lastYearRevenue;
+    rate.value = state.bonusRate;
+    onStateChange();
+  });
+  document.getElementById("btn-clear-log").addEventListener("click", () => {
+    state.importLogs = [];
+    renderLogs();
+  });
+  document.getElementById("btn-export-json").addEventListener("click", exportJSON);
+  document.getElementById("btn-export-csv").addEventListener("click", exportCSV);
+  document.getElementById("json-restore").addEventListener("change", restoreJSON);
+
+  // 首次渲染
+  render();
+
+  // 連 Firebase
+  setupFirestoreSync();
+}
+
+async function setupFirestoreSync() {
+  state.syncStatus = "connecting";
+  renderSyncBadge();
+  const fb = await initFirebase();
+  if (!fb) {
+    state.syncStatus = "error";
+    initialLoadDone = true;
+    renderSyncBadge();
+    return;
+  }
+  const ref = fb.fns.doc(fb.db, FIRESTORE_DOC_PATH[0], FIRESTORE_DOC_PATH[1]);
+  unsubscribe = fb.fns.onSnapshot(
+    ref,
+    snap => {
+      if (isWriting) return;
+      if (snap.exists()) {
+        const d = snap.data();
+        if (d.year !== undefined) {
+          state.year = d.year;
+          document.getElementById("cfg-year").value = state.year;
+        }
+        if (d.lastYearRevenue !== undefined) {
+          state.lastYearRevenue = d.lastYearRevenue;
+          document.getElementById("cfg-last-revenue").value = state.lastYearRevenue;
+        }
+        if (d.bonusRate !== undefined) {
+          state.bonusRate = d.bonusRate;
+          document.getElementById("cfg-bonus-rate").value = state.bonusRate;
+        }
+        if (d.monthlyData) state.monthly = d.monthlyData;
+        if (d.updatedAt) state.lastSyncedAt = d.updatedAt;
+      }
+      state.syncStatus = "synced";
+      initialLoadDone = true;
+      render();
+    },
+    err => {
+      console.error("Firestore 訂閱失敗：", err);
+      state.syncStatus = "error";
+      initialLoadDone = true;
+      renderSyncBadge();
+    }
+  );
+}
+
+// ─── 匯出 ───
+function exportJSON() {
+  const data = {
+    _meta: { exportedAt: new Date().toISOString(), version: "v3.3-html", source: "BESTEA Marketing KPI" },
+    year: state.year,
+    lastYearRevenue: state.lastYearRevenue,
+    bonusRate: state.bonusRate,
+    monthlyData: state.monthly
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `bestea-kpi-backup-${state.year}-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function restoreJSON(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  e.target.value = "";
+  try {
+    const text = await file.text();
+    const d = JSON.parse(text);
+    if (!confirm("此操作將覆蓋目前所有資料（含雲端）。繼續？")) return;
+    if (d.year) state.year = d.year;
+    if (d.lastYearRevenue !== undefined) state.lastYearRevenue = d.lastYearRevenue;
+    if (d.bonusRate !== undefined) state.bonusRate = d.bonusRate;
+    if (d.monthlyData) state.monthly = d.monthlyData;
+    document.getElementById("cfg-year").value = state.year;
+    document.getElementById("cfg-last-revenue").value = state.lastYearRevenue;
+    document.getElementById("cfg-bonus-rate").value = state.bonusRate;
+    state.importLogs.unshift({ status: "success", msg: `已從備份還原（${file.name}）` });
+    onStateChange();
+  } catch (err) {
+    state.importLogs.unshift({ status: "error", msg: `備份還原失敗：${err.message}` });
+    renderLogs();
+  }
+}
+
+function exportCSV() {
+  const summary = computeSummary();
+  const scores = computeScores(summary);
+  const lines = [
+    `BESTEA 行銷經營 KPI 年度結算報告 - ${state.year}`,
+    "",
+    "【月度明細】",
+    "月份,官網營收,推播則數,推播帶單營收,推播RPP,新增會員,舊客數,總消費顧客,舊客占比"
+  ];
+  MONTHS.forEach(m => {
+    const d = state.monthly[m] || EMPTY_MONTH;
+    const rpp = d.broadcastCount > 0 ? Math.round(d.broadcastRevenue / d.broadcastCount) : 0;
+    const ret = d.totalCustomers > 0 ? ((d.returningCustomers / d.totalCustomers) * 100).toFixed(2) : "0";
+    lines.push([
+      `${state.year}-${m}`, d.revenue, d.broadcastCount, d.broadcastRevenue, rpp,
+      d.members, d.returningCustomers, d.totalCustomers, `${ret}%`
+    ].join(","));
+  });
+  lines.push("");
+  lines.push("【KPI 結算】");
+  lines.push(`年度總官網營收,${summary.totalRevenue}`);
+  lines.push(`對比基期,${state.lastYearRevenue}`);
+  lines.push(`年成長率,${(summary.growthRate * 100).toFixed(2)}%,目標 ≥${(KPI_CONFIG.growthRate.target * 100).toFixed(0)}%,得分 ${scores.sGrowth}/${KPI_CONFIG.growthRate.weight}`);
+  lines.push(`平均 RPP,${Math.round(summary.rpp)},目標 ≥${KPI_CONFIG.rpp.target},得分 ${scores.sRpp}/${KPI_CONFIG.rpp.weight}`);
+  lines.push(`舊客回購率,${(summary.returningRate * 100).toFixed(2)}%,目標 ≥${(KPI_CONFIG.returningRate.target * 100).toFixed(0)}%,得分 ${scores.sReturning}/${KPI_CONFIG.returningRate.weight}`);
+  lines.push(`月會員增長,${summary.monthlyMemberAvg.toFixed(0)},目標 ≥${KPI_CONFIG.memberGrowth.target},得分 ${scores.sMember}/${KPI_CONFIG.memberGrowth.weight}`);
+  lines.push("");
+  lines.push(`KPI 總分,${scores.total}/120`);
+  lines.push(`獎金池,${scores.pool}`);
+  lines.push(`實領獎金,${scores.actual}`);
+  const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `bestea-kpi-${state.year}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// 啟動
+init();
+</script>
+
+</body>
+</html>
