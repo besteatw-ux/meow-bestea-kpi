@@ -395,7 +395,7 @@
     <div>
       <div class="badge">
         <span class="icon" id="icon-trending"></span>
-        BESTEA 行銷經營 KPI ・ v3.4 ・ 支援日報/月報自動辨識
+        BESTEA 行銷經營 KPI ・ v3.5 ・ 已扣除取消訂單
       </div>
       <h1>拖拉式報表匯入 ・ Firebase 雲端同步</h1>
       <p class="meta">
@@ -446,7 +446,7 @@
     </div>
     <div class="hint">
       支援自動辨識：
-      <code>OnlineGrossMerchandiseValue</code>
+      <code>OnlineTotalSales</code>
       <code>OnlineNewlyAddedMembers</code>
       <code>OnlineTotalShoppers</code>
       <code>line-broadcast-history</code>
@@ -757,11 +757,15 @@ function parseCSV(text) {
 
 function detectReportType(filename, rows) {
   const fn = filename.toLowerCase();
+  // 檔名識別（優先）
+  if (fn.includes("totalsales")) return "totalsales";
   if (fn.includes("grossmerchandisevalue")) return "gmv";
   if (fn.includes("newlyaddedmembers")) return "members";
   if (fn.includes("totalshoppers")) return "shoppers";
   if (fn.includes("line-broadcast")) return "broadcast";
+  // 內容識別（後備）
   const flat = rows.flat().join("|");
+  if (flat.includes("總營業額") && flat.includes("取消總額")) return "totalsales";
   if (flat.includes("成交總額") && flat.includes("平均訂單金額")) return "gmv";
   if (flat.includes("新增會員數")) return "members";
   if (flat.includes("舊客占比") || flat.includes("舊客消費顧客數")) return "shoppers";
@@ -774,6 +778,30 @@ function detectReportType(filename, rows) {
 // 日報：第三欄是單日 → 多行需依月加總
 function isDailyFormat(row2) {
   return row2 && !row2.includes("-") && /^\d{4}\/\d{2}\/\d{2}$/.test(row2.trim());
+}
+
+function parseTotalSales(rows) {
+  // OnlineTotalSales 格式：第 4 欄是「總營業額」（已扣除取消訂單）
+  // 月報：第 3 欄是「月份」（如 2026/01/01 - 2026/01/31）
+  // 日報：第 3 欄是「日期」（如 2026/02/01）
+  const monthly = {}; let year = null;
+  for (const row of rows) {
+    if (row.length < 4 || row[0] !== "分析區間") continue;
+    const dateCell = row[2] || "";
+    const m = dateCell.match(/(\d{4})\/(\d{2})\/\d{2}/);
+    if (!m) continue;
+    year = m[1];
+    const month = m[2];
+    const rev = parseInt(row[3].replace(/,/g, ""), 10);
+    if (isNaN(rev)) continue;
+    if (isDailyFormat(dateCell)) {
+      if (!monthly[month]) monthly[month] = { revenue: 0 };
+      monthly[month].revenue += rev;
+    } else {
+      monthly[month] = { revenue: rev };
+    }
+  }
+  return { type: "totalsales", year, monthly };
 }
 
 function parseGMV(rows) {
@@ -1229,7 +1257,8 @@ async function handleFiles(fileList) {
       const rows = parseCSV(text);
       const type = detectReportType(file.name, rows);
       let parsed = null, label = "";
-      if (type === "gmv") { parsed = parseGMV(rows); label = "官網成交總額"; }
+      if (type === "totalsales") { parsed = parseTotalSales(rows); label = "官網總營業額（已扣除取消）"; }
+      else if (type === "gmv") { parsed = parseGMV(rows); label = "官網成交總額（含取消，建議改用 TotalSales）"; }
       else if (type === "members") { parsed = parseMembers(rows); label = "新增會員"; }
       else if (type === "shoppers") { parsed = parseShoppers(rows); label = "消費顧客（含舊客）"; }
       else if (type === "broadcast") { parsed = parseBroadcast(rows); label = "LINE 推播"; }
