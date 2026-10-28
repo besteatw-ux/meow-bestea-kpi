@@ -1,0 +1,31 @@
+rules_version = '2';
+
+// BESTEA KPI 資料庫權限
+// 貼到 Firebase 主控台 → Firestore Database → 規則 → 發布
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 只有這個 Google 帳號登入後能看、能改
+    function owner() {
+      return request.auth != null
+        && request.auth.token.email == 'besteatw@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    // 網頁的手動資料：推播報表、結算年份、基期、獎金係數
+    match /marketing_kpi/main {
+      allow read, write: if owner();
+    }
+
+    // 自動同步寫的資料：網頁只能讀；只有 GitHub 自動排程（服務帳戶，不受這份規則限制）能寫
+    match /marketing_kpi/auto {
+      allow read: if owner();
+      allow write: if false;
+    }
+
+    // 其他一律不開放
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

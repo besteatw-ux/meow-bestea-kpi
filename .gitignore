@@ -1,0 +1,6 @@
+node_modules/
+*.log
+auto*.json
+service-account*.json
+.env
+sync/package-lock.json

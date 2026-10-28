@@ -1,0 +1,80 @@
+name: KPI 自動同步（Shopline → Firebase）
+
+on:
+  schedule:
+    - cron: '0 22 * * *'   # 每天台灣時間 06:00（要先把 Variables 的 KPI_AUTO_SYNC 設成 on 才會真的寫入）
+  workflow_dispatch:       # 到 GitHub「Actions」頁按「Run workflow」手動執行
+    inputs:
+      mode:
+        description: '執行模式：compare＝跟手動月報比對（不寫入）、dry-run＝只算不寫、sync＝寫入'
+        type: choice
+        options: [compare, dry-run, sync]
+        default: compare
+
+permissions:
+  contents: write          # 只用在最下面「保持排程啟用」的空提交
+
+concurrency:
+  group: kpi-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 安裝
+        working-directory: sync
+        run: npm install --omit=dev --no-audit --no-fund
+
+      - name: 測試計算邏輯
+        working-directory: sync
+        run: npm test
+
+      # 每日排程：比對確認口徑沒問題、把 Variables 的 KPI_AUTO_SYNC 設成 on 之後才會寫入
+      - name: 從 Shopline 抓資料並寫入 Firebase（每日排程）
+        if: github.event_name == 'schedule' && vars.KPI_AUTO_SYNC == 'on'
+        working-directory: sync
+        env:
+          SHOPLINE_TOKEN: ${{ secrets.SHOPLINE_TOKEN }}
+          SHOPLINE_HANDLE: bestea
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node sync.mjs
+
+      - name: 每日排程尚未啟用
+        if: github.event_name == 'schedule' && vars.KPI_AUTO_SYNC != 'on'
+        run: echo "KPI_AUTO_SYNC 還沒設成 on，這次不寫入。先手動跑一次 compare 確認數字。"
+
+      - name: 手動執行（${{ inputs.mode }}）
+        if: github.event_name == 'workflow_dispatch'
+        working-directory: sync
+        env:
+          SHOPLINE_TOKEN: ${{ secrets.SHOPLINE_TOKEN }}
+          SHOPLINE_HANDLE: bestea
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          case "$MODE" in
+            compare) node sync.mjs --compare ;;
+            dry-run) node sync.mjs --dry-run ;;
+            sync)    node sync.mjs ;;
+            *) echo "未知模式 $MODE"; exit 1 ;;
+          esac
+
+      # GitHub 會把 60 天沒有任何提交的專案的排程自動停用；超過 50 天就補一個空提交讓它繼續跑
+      - name: 保持排程啟用
+        if: github.event_name == 'schedule'
+        run: |
+          last=$(git log -1 --format=%ct)
+          if [ $(( $(date +%s) - last )) -gt $(( 50 * 86400 )) ]; then
+            git config user.name "kpi-sync-bot"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "保持 KPI 自動同步排程啟用"
+            git push
+          fi

@@ -1,0 +1,16 @@
+{
+  "name": "meow-bestea-kpi-sync",
+  "private": true,
+  "type": "module",
+  "description": "BESTEA KPI 自動同步：Shopline OpenAPI → Firestore",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "sync": "node sync.mjs",
+    "dry-run": "node sync.mjs --dry-run",
+    "compare": "node sync.mjs --compare",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "12.7.0"
+  }
+}
